@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌼 Venuss Chattra 🌼 - Login</title>
+  <link rel="stylesheet" href="style.css">
+
+ 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <div id="login-page">
+    <div class="login-box">
+      <h2>🌼 Venuss Chattra 🌼</h2>
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+
+      <div class="show-pass">
+        <input type="checkbox" id="show-password"> Show Password
+      </div>
+
+      <button onclick="login( )">Login</button>
+      <p id="login-message" style="color:red; font-size:14px; margin-top:10px;"></p>
+    </div>
+  </div>
+
+  <script>
+    const { createClient } = supabase; 
+    
+    const supabaseClient = createClient(
+      "https://uhxzvovlzgjmicermdjj.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoeHp2b3ZsemdqbWljZXJtZGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1MDczMTksImV4cCI6MjA3OTA4MzMxOX0.rMPLBcB2_Hq6p-IWGl-teKwcK6-6-VQMN-XIErHQYR4"
+     );
+
+    async function login() {
+      const userEl = document.getElementById("username");
+      const passEl = document.getElementById("password");
+      const msgEl = document.getElementById("login-message");
+
+      const user = userEl.value.trim();
+      const pass = passEl.value.trim();
+
+      msgEl.textContent = ""; 
+
+      if (!user || !pass) {
+        msgEl.textContent = "Please fill in all fields.";
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from("users")
+        .select("username, role") 
+        .eq("username", user)
+        .eq("password", pass)
+        .single(); 
+
+      if (error || !data) {
+        console.error("Login error:", error);
+        msgEl.textContent = "Incorrect username or password.";
+        return;
+      }
+
+      localStorage.setItem("loggedIn", "true");
+      localStorage.setItem("role", data.role); "user"
+      localStorage.setItem("username", data.username);
+
+      msgEl.style.color = "green";
+      msgEl.textContent = "Login successful! Redirecting...";
+
+      setTimeout(() => {
+        window.location.href = "birthdate.html";
+      }, 1000); 
+    }
+
+    document.getElementById("show-password").addEventListener("change", (e) => {
+      const pwField = document.getElementById("password");
+      pwField.type = e.target.checked ? "text" : "password";
+    });
+
+    document.getElementById("password").addEventListener("keyup", (event) => {
+        if (event.key === "Enter") {
+            login();
+        }
+    });
+  </script>
+
+</body>
+</html>
