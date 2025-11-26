@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌼 Venuss Chattra 🌼 - Korve Schedule</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+
+    .korve-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      margin-bottom: 30px; 
+    }
+    .korve-table th, .korve-table td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    .korve-table th {
+      background-color: #f2f2f2;
+      width: 40%; 
+    }
+    .korve-table td {
+      cursor: pointer;
+    }
+    .korve-table td:hover {
+      background-color: #f9f9f9;
+    }
+    .edit-btn {
+        font-size: 10px;
+        margin-left: 5px;
+        cursor: pointer;
+        display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌼 Venuss Chattra 🌼</h1>
+    <p id="korve-title">🧹 Sunday Korve Schedule 🧹</p>
+  </header>
+
+  <div class="container card">
+    <div id="korve-tables-container"></div>
+
+    <div class="navigation-buttons" style="margin-top: 20px;">
+        <a href="picket.html"><button>⬅️ Back to Picket Schedule</button></a>
+        <a href="curhatpadlet.html"><button>➡️ Next: Curhat Padlet</button></a>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+ 
+  const supabaseUrl = "https://uhxzvovlzgjmicermdjj.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoeHp2b3ZsemdqbWljZXJtZGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1MDczMTksImV4cCI6MjA3OTA4MzMxOX0.rMPLBcB2_Hq6p-IWGl-teKwcK6-6-VQMN-XIErHQYR4";
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey );
+
+  let userRole = null;
+  const FLOORS = [1, 2, 3];
+  const TASKS = [
+    "West Toilet", "East Toilet", "West Drying Rack", "East Drying Rack",
+    "Fridge", "Front Yard", "Corridor and Room", "Lobby"
+  ];
+
+  document.addEventListener('DOMContentLoaded', () => {
+  userRole = localStorage.getItem("role");
+
+  const today = new Date();
+  
+  const daysUntilSunday = (7 - today.getDay()) % 7;
+  
+  const nextSunday = new Date(today);
+  nextSunday.setDate(today.getDate() + daysUntilSunday);
+
+  const formattedDate = nextSunday.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  document.getElementById('korve-title').textContent += ` - ${formattedDate}`;
+
+  renderKorveTables();
+});
+
+  async function renderKorveTables() {
+    const container = document.getElementById("korve-tables-container");
+    container.innerHTML = "<p>Loading schedule...</p>";
+
+    const { data: schedules, error } = await supabaseClient
+      .from("korve_schedule")
+      .select("*");
+
+    if (error) {
+      container.innerHTML = "<p>Error loading schedule.</p>";
+      console.error(error);
+      return;
+    }
+
+    let allTablesHTML = '';
+
+    FLOORS.forEach(floor => {
+      allTablesHTML += `<h3>Floor ${floor}</h3>`;
+      allTablesHTML += `<table class="korve-table">`;
+      allTablesHTML += `<tr><th>Task</th><th>Assigned To</th></tr>`;
+
+      TASKS.forEach(task => {
+        const schedule = schedules.find(s => s.floor === floor && s.task === task);
+        const person = schedule ? schedule.person_in_charge : '-';
+        
+        allTablesHTML += `<tr>`;
+        allTablesHTML += `<td>${task}</td>`;
+        allTablesHTML += `<td onclick="handleCellClick(${floor}, '${task}')">`;
+        allTablesHTML += person;
+        
+        if (userRole === 'admin' && schedule) {
+            allTablesHTML += `<span class="edit-btn">✏️</span>`;
+        }
+        allTablesHTML += `</td>`;
+        allTablesHTML += `</tr>`;
+      });
+
+      allTablesHTML += `</table>`;
+    });
+    
+    container.innerHTML = allTablesHTML;
+  }
+
+  async function handleCellClick(floor, task) {
+    if (userRole !== 'admin') {
+      alert("Only admins can edit the schedule.");
+      return;
+    }
+    
+    const newPerson = prompt(`Enter name for task "${task}" on Floor ${floor}:`);
+
+    if (newPerson === null) return; 
+
+    await supabaseClient
+        .from('korve_schedule')
+        .delete()
+        .match({ floor: floor, task: task });
+
+    if (newPerson.trim() !== '') {
+        const { error } = await supabaseClient
+            .from('korve_schedule')
+            .insert([{ floor: floor, task: task, person_in_charge: newPerson.trim() }]);
+        
+        if (error) {
+            alert('Failed to update schedule: ' + error.message);
+        }
+    }
+    
+    renderKorveTables();
+  }
+</script>
+
+</body>
+</html>
