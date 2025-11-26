@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌼 Venuss Chattra 🌼 - Picket Schedule</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .picket-table {
+      table-layout: fixed; 
+    }
+    .picket-table td {
+      vertical-align: top; 
+      height: 80px; 
+    }
+    .picket-table .floor-header {
+      font-weight: bold;
+      vertical-align: middle;
+    }
+    .picket-table .name-list {
+      list-style-type: none; 
+      padding: 0;
+      margin: 0;
+      text-align: center; 
+    }
+    .picket-table .name-list li {
+      padding: 2px 5px;
+    }
+    .picket-table .editable-cell {
+      cursor: pointer;
+      background-color: #f9f9f9;
+    }
+    .picket-table .editable-cell:hover {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌼 Venuss Chattra 🌼</h1>
+    <p>🧹 Picket Schedule 🧹</p>
+  </header>
+
+  <div class="container card">
+    <h2 id="table-title">PICKET SCHEDULE FOR</h2>
+    
+    <div id="picket-schedule-container"></div>
+
+    <div class="page-navigation" style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
+        <a href="birthdate.html"><button>🎂 Birthdays</button></a>
+        <a href="korve.html"><button>🪣 Korve Schedule</button></a>
+        <a href="curhatpadlet.html"><button>💌 Curhat Padlet</button></a>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  
+  const supabaseUrl = "https://uhxzvovlzgjmicermdjj.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoeHp2b3ZsemdqbWljZXJtZGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1MDczMTksImV4cCI6MjA3OTA4MzMxOX0.rMPLBcB2_Hq6p-IWGl-teKwcK6-6-VQMN-XIErHQYR4";
+  const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey );
+
+  let userRole = null;
+  const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const FLOORS = [1, 2, 3];
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const isLoggedIn = localStorage.getItem("loggedIn");
+    if (isLoggedIn !== "true") {
+      alert("You need to log in first!");
+      window.location.href = "index.html";
+      return;
+    }
+    userRole = localStorage.getItem("role");
+    
+    const monthName = new Date().toLocaleString('default', { month: 'long' }).toUpperCase();
+    const year = new Date().getFullYear().toString().slice(-2);
+    document.getElementById('table-title').textContent += ` - ${monthName} '${year}`;
+
+    renderPicketTable();
+  });
+
+  async function renderPicketTable() {
+    const container = document.getElementById("picket-schedule-container");
+    container.innerHTML = "<p>Loading schedule...</p>";
+
+    const { data: schedules, error } = await supabaseClient
+      .from("picket_schedule")
+      .select("day, floor, names");
+
+    if (error) {
+      container.innerHTML = "<p>Error loading schedule.</p>";
+      console.error(error);
+      return;
+    }
+
+    let tableHTML = '<table class="picket-table"><thead><tr><th></th>'; 
+    DAYS.forEach(day => tableHTML += `<th>${day}</th>`);
+    tableHTML += '</tr></thead><tbody>';
+
+    FLOORS.forEach(floor => {
+      tableHTML += `<tr><td class="floor-header">Floor. ${floor}</td>`;
+      
+      DAYS.forEach(day => {
+        const schedule = schedules.find(s => s.day === day && s.floor === floor);
+        const names = schedule?.names || []; 
+
+        const adminAttrs = userRole === 'admin' 
+          ? `class="editable-cell" onclick="editCell('${day}', ${floor})"` 
+          : '';
+
+        tableHTML += `<td ${adminAttrs}>`;
+        
+        if (names.length > 0) {
+          tableHTML += '<ul class="name-list">';
+          names.forEach(name => tableHTML += `<li>${name}</li>`);
+          tableHTML += '</ul>';
+        }
+        
+        tableHTML += '</td>';
+      });
+      tableHTML += '</tr>';
+    });
+
+    tableHTML += '</tbody></table>';
+    container.innerHTML = tableHTML;
+  }
+
+  async function editCell(day, floor) {
+    if (userRole !== 'admin') return;
+
+    const { data, error } = await supabaseClient
+      .from('picket_schedule')
+      .select('names')
+      .eq('day', day)
+      .eq('floor', floor)
+      .single();
+
+    const existingNames = data?.names || [];
+    const currentNamesString = existingNames.join(', ');
+
+    const newNamesString = prompt(
+      `Edit names for ${day}, Floor ${floor}:\n(Separate names with a comma)`,
+      currentNamesString
+    );
+
+    if (newNamesString === null || newNamesString.trim() === currentNamesString.trim()) {
+      return;
+    }
+
+    const newNamesArray = newNamesString.trim() === ''
+      ? [] 
+      : newNamesString.split(',').map(name => name.trim()).filter(name => name);
+
+    const { error: upsertError } = await supabaseClient
+      .from('picket_schedule')
+      .upsert({ 
+        day: day, 
+        floor: floor, 
+        names: newNamesArray 
+      }, { 
+        onConflict: 'day, floor'
+      });
+
+    if (upsertError) {
+      alert('Failed to update schedule: ' + upsertError.message);
+    } else {
+      renderPicketTable(); 
+    }
+  }
+
+</script>
+
+</body>
+</html>
