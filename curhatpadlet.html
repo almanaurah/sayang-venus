@@ -101,7 +101,7 @@
 
         let cardHTML = `<div class="username">${post.username}</div>`;
         if (post.image_url) {
-          cardHTML += `<img src="${post.image_url}" alt="Curhat Image">`;
+          cardHTML += `<img src="${post.image_url}" alt="Chat Image">`;
         }
         cardHTML += `<div class="content">${post.content}</div>`;
         cardHTML += `<div class="timestamp">${new Date(post.created_at).toLocaleString()}</div>`;
@@ -155,9 +155,9 @@
     try {
       if (imageFile) {
         const fileName = `public/${Date.now()}_${imageFile.name}`;
-        const { data: uploadData, error: uploadError } = await supabaseClient.storage.from('curhat-images').upload(fileName, imageFile);
+        const { data: uploadData, error: uploadError } = await supabaseClient.storage.from('curhat_images').upload(fileName, imageFile);
         if (uploadError) throw uploadError;
-        const { data: urlData } = supabaseClient.storage.from('curhat-images').getPublicUrl(uploadData.path);
+        const { data: urlData } = supabaseClient.storage.from('curhat_images').getPublicUrl(uploadData.path);
         finalImageUrl = urlData.publicUrl;
       }
 
