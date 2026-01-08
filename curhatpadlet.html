@@ -237,7 +237,7 @@
 
       if (imageUrl) {
         const fileName = imageUrl.split('/').pop();
-        await supabaseClient.storage.from('curhat-images').remove([fileName]);
+        await supabaseClient.storage.from('curhat_images').remove([fileName]);
       }
       loadPosts();
     } catch (error) {
